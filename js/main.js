@@ -1,17 +1,17 @@
 // The goale of Lab1 is to make a time series proportional symbol map from at least 15 geographic points with having 7 time sequencing attributes
-
+var basemap;
 //Create the Leaflet map
 function createMap(){
     //create the map
     var map = L.map('mapid', {
         center: [41.257160, -95.995102],
-        zoom:5,
+        zoom:4.5,
 		minzoom:2,
 		maxzoom:18
     });
 
     //add OSM base tilelayer
-    L.tileLayer('http://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    basemap = L.tileLayer('http://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap contributors</a>'
     }).addTo(map);
 
@@ -23,7 +23,6 @@ function createMap(){
 var currentYear;
 var stateLayer;
 var popLayer;
-var hasControl=false;
 
 //calculate the radius of each proportional symbol
 function calcPropRadius(attValue) {
@@ -44,7 +43,7 @@ function Popup(properties, attribute, layer, radius){
     this.layer = layer;
     this.year = attribute.split("_")[1];
     this.population = this.properties[attribute];
-    this.content = "<p class='infowindow'> Estimated Population in 2018 in the State of "+this.properties.State+" was: " + this.properties.Pop_2018 + " "+ "<br>" + "<p3>Source of Data is:United States Census Bureau</p3>"+"</p>";
+    this.content = "<p class='infowindow'> Estimated Population in 2018 in the State of "+this.properties.State+" was: " + this.properties.Pop_2018 + " "+ "<br>" + "<p3>Source of Data:United States Census Bureau</p3>"+"</p>";
 
     this.bindToLayer = function(){
         this.layer.bindPopup(this.content, {
@@ -63,9 +62,9 @@ function pointToLayer(feature, latlng, attributes){
 
     //create marker options
     var options = {
-        fillColor: "maroon",
+        fillColor: "rgba(125,6,4,0.9)",
         color: "white",
-        weight: 1,
+        weight: 1.5,
         opacity: 1,
         fillOpacity: 0.8
     };
@@ -98,7 +97,6 @@ function pointToLayer(feature, latlng, attributes){
 
     //return the circle marker to the L.geoJson pointToLayer option
     return layer;
-	addLayerControl();
 };
 //End function to convert markers to circle
 
@@ -121,7 +119,6 @@ function processData(data){
     };
 
     return attributes;
-	addLayerControl();
 };
 //End of an attributes array from the data
 
@@ -129,7 +126,7 @@ function processData(data){
 //Begine adding circle markers for point features to the map
 function createPropSymbols(data, map, attributes){
     //create a Leaflet GeoJSON layer and add it to the map
-    L.geoJson(data, {
+    popLayer = L.geoJson(data, {
         pointToLayer: function(feature, latlng){
             return pointToLayer(feature, latlng, attributes);
         }
@@ -158,7 +155,6 @@ function updatePropSymbols(map, attribute){
     });
 
     updateLegend(map, attribute);
-	addLayerControl();
 };
 //End Resize proportional symbols according to new attribute values
 
@@ -178,7 +174,7 @@ function createLegend(map, attributes){
             $(container).append('<div id="temporal-legend">')
 
             //Step 1: start attribute legend svg string
-            var svg = '<svg id="attribute-legend" width="160px" height="120px">';
+            var svg = '<svg id="attribute-legend" width="190px" height="120px">';
 
             //object to base loop
             var circles = {
@@ -190,10 +186,10 @@ function createLegend(map, attributes){
             //loop to add each circle and text to svg string
             for (var circle in circles){
                 //circle string
-                svg += '<circle class="legend-circle" id="' + circle + '" fill="maroon" fill-opacity="0.8" stroke="white" cx="70"/>';
+                svg += '<circle class="legend-circle" id="' + circle + '" fill="rgba(125,6,4,1)" fill-opacity="0.8" stroke="white" cx="70"/>';
 
                 //text string
-                svg += '<text id="' + circle + '-text" x="120" y="' + circles[circle] + '"></text>';
+                svg += '<text id="' + circle + '-text" x="115" y="' + circles[circle] + '"></text>';
             };
 
             //close svg string
@@ -302,7 +298,6 @@ function createSequenceControls(map, attributes){
             L.DomEvent.disableClickPropagation(container);
 
             return container;
-			addLayerControl();
         }
 		
     });
@@ -354,7 +349,6 @@ function createSequenceControls(map, attributes){
 
 		//pass new attribute to update symbols
 		updatePropSymbols(map, attributes[index]);
-		addLayerControl();
 	});
 };
 // EndCreate Sequence Control Function
@@ -363,50 +357,42 @@ function createSequenceControls(map, attributes){
 
 //Begine Import GeoJSON data
 function getData(map){
-    //load the data
-    $.ajax("data/StatesPopulation.geojson", {
-        dataType: "json",
-        success: function(response){
-            //create an attributes array
-            var attributes = processData(response);
+	var promises = [];
+	promises.push($.getJSON("data/StatesPopulation.geojson"));
+	promises.push($.getJSON("data/State.geojson"));
+	Promise.all(promises).then(function(data) {
+		var stateData = data[1];
+		var popData = data[0];
+		
+		stateLayer = L.geoJson(stateData).addTo(map);
+		
+		//create an attributes array
+		var attributes = processData(popData);
 
-            createPropSymbols(response, map, attributes);
-            createSequenceControls(map, attributes);
-            createLegend(map, attributes);
-			addLayerControl();
-        }
-    });
+		createPropSymbols(popData, map, attributes);
+		createSequenceControls(map, attributes);
+		createLegend(map, attributes);
+		
+		
+		
+		
+		addLayerControl(map);
+	});
 };
 //End Import GeoJSON data
 
 
-//Begine adding another geoJson data file that will be used as a fifth operator(Overlay)
-function stateGeojson(){
-    //load the data
-    $.ajax("data/State.geojson", {
-        dataType: "json",
-        success: function(response){
-            //create an attributes array
-            var attributes = processData(response);
-			addLayerControl();
-
-        }
-    });
-};
-//Endadding another geoJson data file that will be used as a fifth operator(Overlay)
-
-
 //Begine adding layer controle
-function addLayerControl(){
+function addLayerControl(map){
 	// Creating Layer Control Operator.
-	if (popLayer&&stateLayer&&!hasControl){
-		var baselayer= {"Base Map": basemap};
-		var overlay={"StateLayer": stateLayer,
-				"Population": popLayer };
+
 	
-		L.control.layers(baselayer, overlay).addTo(map);
-		hasControl = true;
-	};
+	var baselayer= {"Base Map": basemap};
+	var overlay={"StateLayer": stateLayer,
+			"Population": popLayer };
+
+	L.control.layers(baselayer, overlay).addTo(map);
+
 };
 //End adding layer controle
 

@@ -88,3 +88,10 @@ p3{
 	color: #80e5ff;
 	font-size:15px;
 }
+
+.leaflet-control-layers-selector{
+	
+	height:20px;
+	width:20px;
+	box-shadow: 0 0 0 3px green;
+}
